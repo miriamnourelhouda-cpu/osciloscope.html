@@ -1,0 +1,137 @@
+<html lang="ar">
+<head>
+  <meta charset="UTF-8"></meta>
+  <title>محاكي راسم الاهتزاز المهبطي</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; background: #111; color: #fff; }
+    #oscilloscope { background: #000; border: 2px solid #0f0; }
+    .controls { margin-top: 10px; display: flex; justify-content: center; flex-wrap: wrap; gap: 15px; }
+    .control-group { background: #ac3973; padding: 10px; border-radius: 10px; }
+    label { display: block; margin: 5px 0; }
+    button { margin: 3px; padding: 5px 10px; border: none; border-radius: 5px; background: #0f0; color: #000; cursor: pointer; }
+    button:hover { background: #6f6; }
+    #measurements { margin-top: 15px; font-size: 18px; }
+  </style>
+</head>
+<body><br />
+  <h1>محاكاة راسم الاهتزاز المهبطي</h1>
+  <canvas height="500" id="oscilloscope" width="800"></canvas>
+
+  <div class="controls">
+    <div class="control-group">
+      <h3>الحساسية الأفقية (s/div)</h3>
+      <button onclick="changeTimeDiv(0.5)">+</button>
+      <span id="timeDiv">0.002</span>
+      <button onclick="changeTimeDiv(-0.5)">-</button>
+    </div>
+
+    <div class="control-group">
+      <h3>الحساسية العمودية (V/div)</h3>
+      <button onclick="changeVoltDiv(0.5)">+</button>
+      <span id="voltDiv">1</span>
+      <button onclick="changeVoltDiv(-0.5)">-</button>
+    </div>
+
+    <div class="control-group">
+      <h3>الإشارة</h3>
+      <label>السعة (V): <input id="amplitude" max="10" min="1" type="range" value="5" /></label>
+      <label>التردد (Hz): <input id="frequency" max="200" min="1" type="range" value="50" /></label>
+    </div>
+
+    <div class="control-group">
+      <h3>الومضة</h3>
+      <label>السرعة: <input id="flashSpeed" max="1" min="0" step="0.01" type="range" value="0.1" /></label>
+    </div>
+
+    <div class="control-group">
+      <button onclick="toggleRun()">تشغيل/إيقاف</button>
+    </div>
+  </div>
+
+  <div id="measurements">
+    <p>U<sub>max</sub>: <span id="umax"></span> V</p>
+    <p>T: <span id="period"></span> s</p>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("oscilloscope");
+    const ctx = canvas.getContext("2d");
+    let running = true;
+    let amplitude = 5;
+    let frequency = 50;
+    let timeDiv = 0.002; // s/div
+    let voltDiv = 1; // V/div
+    let flashSpeed = 0.1;
+    let t = 0;
+
+    document.getElementById("amplitude").oninput = e => amplitude = +e.target.value;
+    document.getElementById("frequency").oninput = e => frequency = +e.target.value;
+    document.getElementById("flashSpeed").oninput = e => flashSpeed = +e.target.value;
+
+    function changeTimeDiv(step){ timeDiv = Math.max(0.0005, timeDiv + step*0.001); document.getElementById("timeDiv").innerText = timeDiv.toFixed(4); }
+    function changeVoltDiv(step){ voltDiv = Math.max(0.5, voltDiv + step*0.5); document.getElementById("voltDiv").innerText = voltDiv.toFixed(1); }
+    function toggleRun(){ running = !running; }
+
+    function drawGrid(){
+      ctx.strokeStyle = "#0f0";
+      ctx.lineWidth = 1;
+      const w = canvas.width, h = canvas.height;
+      const divX = 10, divY = 8;
+      const dx = w/divX, dy = h/divY;
+      ctx.beginPath();
+
+      // خطوط رئيسية
+      for(let i=0;i<=divX;i++){ ctx.moveTo(i*dx,0); ctx.lineTo(i*dx,h); }
+      for(let j=0;j<=divY;j++){ ctx.moveTo(0,j*dy); ctx.lineTo(w,j*dy); }
+      ctx.stroke();
+
+      // خطوط فرعية
+      ctx.strokeStyle = "#060";
+      ctx.beginPath();
+      for(let i=0;i<divX*5;i++){ ctx.moveTo(i*dx/5,0); ctx.lineTo(i*dx/5,h); }
+      for(let j=0;j<divY*5;j++){ ctx.moveTo(0,j*dy/5); ctx.lineTo(w,j*dy/5); }
+      ctx.stroke();
+
+      // المحاور في الوسط
+      ctx.strokeStyle = "#f00";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(w/2,0); ctx.lineTo(w/2,h);
+      ctx.moveTo(0,h/2); ctx.lineTo(w,h/2);
+      ctx.stroke();
+    }
+
+    function drawSignal(){
+      const w = canvas.width, h = canvas.height;
+      const centerY = h/2;
+      ctx.strokeStyle = "#ff0";
+      ctx.beginPath();
+      let points=[];
+      for(let x=0;x<w;x++){
+        let time = t + x* timeDiv/80;
+        let y = amplitude*Math.sin(2*Math.PI*frequency*time);
+        let py = centerY - (y/voltDiv)*(h/8);
+        if(x===0) ctx.moveTo(x,py); else ctx.lineTo(x,py);
+        points.push({time,y});
+      }
+      ctx.stroke();
+
+      // قياسات
+      document.getElementById("umax").innerText = amplitude.toFixed(2);
+      document.getElementById("period").innerText = (1/frequency).toFixed(4);
+    }
+
+    function loop(){
+      if(running){
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        drawGrid();
+        drawSignal();
+        t += flashSpeed;
+      }
+      requestAnimationFrame(loop);
+    }
+    loop();
+  </script>
+</body>
+</html>
